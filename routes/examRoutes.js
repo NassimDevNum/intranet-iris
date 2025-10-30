@@ -1,20 +1,21 @@
 const express = require('express');
 const router = express.Router();
 const examController = require('../controllers/examController');
+const { protect, authorize } = require('../middleware/auth');
 
-// Créer un examen
-router.post('/', examController.createExam);
+// Créer un examen (enseignants uniquement)
+router.post('/', protect, authorize('enseignant'), examController.createExam);
 
-// Récupérer tous les examens
-router.get('/', examController.getAllExams);
+// Récupérer tous les examens (authentifié)
+router.get('/', protect, examController.getAllExams);
 
-// Récupérer un examen par ID
-router.get('/:id', examController.getExamById);
+// Récupérer un examen par ID (authentifié)
+router.get('/:id', protect, examController.getExamById);
 
-// Mettre à jour un examen
-router.put('/:id', examController.updateExam);
+// Mettre à jour un examen (enseignants uniquement)
+router.put('/:id', protect, authorize('enseignant'), examController.updateExam);
 
-// Supprimer un examen
-router.delete('/:id', examController.deleteExam);
+// Supprimer un examen (enseignants uniquement)
+router.delete('/:id', protect, authorize('enseignant'), examController.deleteExam);
 
 module.exports = router;

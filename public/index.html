@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IRIS Exam - Connexion</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="container">
+    <div class="login-box">
+      <h1>🎓 IRIS Exam</h1>
+      <h2>Connexion</h2>
+      
+      <div id="errorMessage" class="error hidden"></div>
+      
+      <form id="loginForm">
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" required placeholder="exemple@iris.fr">
+        </div>
+        
+        <div class="form-group">
+          <label for="password">Mot de passe</label>
+          <input type="password" id="password" name="password" required placeholder="••••••">
+        </div>
+        
+        <button type="submit" class="btn btn-primary">Se connecter</button>
+      </form>
+      
+      <div class="register-link">
+        <p>Pas encore de compte ? <a href="#" id="showRegister">S'inscrire</a></p>
+      </div>
+    </div>
+    
+    <!-- Formulaire d'inscription (caché par défaut) -->
+    <div class="register-box hidden" id="registerBox">
+      <h2>Inscription</h2>
+      
+      <div id="registerError" class="error hidden"></div>
+      
+      <form id="registerForm">
+        <div class="form-group">
+          <label for="regEmail">Email</label>
+          <input type="email" id="regEmail" name="email" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="regPassword">Mot de passe</label>
+          <input type="password" id="regPassword" name="password" required minlength="6">
+        </div>
+        
+        <div class="form-group">
+          <label for="nom">Nom</label>
+          <input type="text" id="nom" name="nom" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="prenom">Prénom</label>
+          <input type="text" id="prenom" name="prenom" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="role">Rôle</label>
+          <select id="role" name="role" required>
+            <option value="">Choisir un rôle</option>
+            <option value="etudiant">Étudiant</option>
+            <option value="enseignant">Enseignant</option>
+          </select>
+        </div>
+        
+        <button type="submit" class="btn btn-primary">S'inscrire</button>
+        <button type="button" class="btn btn-secondary" id="backToLogin">Retour</button>
+      </form>
+    </div>
+  </div>
+  
+  <script src="js/auth.js"></script>
+</body>
+</html>

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IRIS Exam - Dashboard Enseignant</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body style="background: #f5f5f5;">
+  
+  <div class="dashboard">
+    <!-- Header -->
+    <div class="header">
+      <div>
+        <h1>🎓 IRIS Exam - Enseignant</h1>
+        <p id="welcomeMessage"></p>
+      </div>
+      <button class="btn btn-secondary" id="logoutBtn" style="width: auto; padding: 10px 20px;">
+        Déconnexion
+      </button>
+    </div>
+    
+    <!-- Onglets -->
+    <div class="card">
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="create">Créer un examen</button>
+        <button class="tab-btn" data-tab="list">Mes examens</button>
+      </div>
+    </div>
+    
+    <!-- Onglet : Créer un examen -->
+    <div class="tab-content active" id="createTab">
+      <div class="card">
+        <h2>📝 Créer un nouvel examen</h2>
+        
+        <form id="createExamForm">
+          <!-- Informations générales -->
+          <div class="form-group">
+            <label for="titre">Titre de l'examen *</label>
+            <input type="text" id="titre" name="titre" required placeholder="Ex: Examen de Mathématiques">
+          </div>
+          
+          <div class="form-group">
+            <label for="description">Description</label>
+            <textarea id="description" name="description" rows="3" placeholder="Description de l'examen"></textarea>
+          </div>
+          
+          <div class="form-group">
+            <label for="duree">Durée (en minutes) *</label>
+            <input type="number" id="duree" name="duree" required min="1" placeholder="Ex: 120">
+          </div>
+          
+          <!-- Questions -->
+          <h3>Questions</h3>
+          <div id="questionsContainer"></div>
+          
+          <button type="button" class="btn btn-secondary" id="addQuestionBtn">
+            ➕ Ajouter une question
+          </button>
+          
+          <!-- Étudiants assignés -->
+          <h3 style="margin-top: 30px;">Étudiants assignés</h3>
+          <div class="form-group">
+            <label for="etudiants">Sélectionner les étudiants</label>
+            <select id="etudiants" name="etudiants" multiple size="5">
+              <!-- Chargé dynamiquement -->
+            </select>
+            <small style="color: #666;">Maintenez Ctrl (ou Cmd sur Mac) pour sélectionner plusieurs étudiants</small>
+          </div>
+          
+          <button type="submit" class="btn btn-primary" style="margin-top: 20px;">
+            ✅ Créer l'examen
+          </button>
+        </form>
+      </div>
+    </div>
+    
+    <!-- Onglet : Liste des examens -->
+    <div class="tab-content" id="listTab">
+      <div class="card">
+        <h2>📚 Mes examens</h2>
+        <div id="examsList"></div>
+      </div>
+    </div>
+    
+  </div>
+  
+  <script src="js/dashboard-enseignant.js"></script>
+</body>
+</html>

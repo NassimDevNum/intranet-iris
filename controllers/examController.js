@@ -95,3 +95,30 @@ exports.deleteExam = async (req, res) => {
     res.status(500).json({ message: 'Erreur serveur', error: error.message });
   }
 };
+
+// Créer un examen (enseignant uniquement)
+exports.createExam = async (req, res) => {
+  try {
+    const { titre, description, duree, questions, etudiantsAssignes, dateDebut, dateFin } = req.body;
+
+    const exam = await Exam.create({
+      titre,
+      description,
+      duree,
+      questions,
+      etudiantsAssignes,
+      dateDebut,
+      dateFin,
+      createdBy: req.user._id,  // On récupère l'ID depuis req.user
+      statut: 'brouillon'
+    });
+
+    res.status(201).json({
+      message: 'Examen créé avec succès',
+      exam
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: 'Erreur serveur', error: error.message });
+  }
+};
