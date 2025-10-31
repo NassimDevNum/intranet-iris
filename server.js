@@ -25,8 +25,11 @@ app.get('/', (req, res) => {
   res.json({ message: 'API IRIS Exam - Serveur démarré ✅' });
 });
 
+
+app.use('/api/submissions', require('./routes/submissionRoutes'));
+
 // Démarrage du serveur
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Serveur démarré sur http://localhost:${PORT}`);
-});
+});   

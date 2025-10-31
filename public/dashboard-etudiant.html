@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IRIS Exam - Dashboard Étudiant</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body style="background: #f5f5f5;">
+  
+  <div class="dashboard">
+    <!-- Header -->
+    <div class="header">
+      <div>
+        <h1>🎓 IRIS Exam - Étudiant</h1>
+        <p id="welcomeMessage"></p>
+      </div>
+      <button class="btn btn-secondary" id="logoutBtn" style="width: auto; padding: 10px 20px;">
+        Déconnexion
+      </button>
+    </div>
+    
+    <!-- Onglets -->
+    <div class="card">
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="exams">Mes examens</button>
+        <button class="tab-btn" data-tab="results">Mes résultats</button>
+      </div>
+    </div>
+    
+    <!-- Onglet : Mes examens -->
+    <div class="tab-content active" id="examsTab">
+      <div class="card">
+        <h2>📝 Examens disponibles</h2>
+        <div id="examsList"></div>
+      </div>
+    </div>
+    
+    <!-- Onglet : Mes résultats -->
+    <div class="tab-content" id="resultsTab">
+      <div class="card">
+        <h2>📊 Mes résultats</h2>
+        <div id="resultsList"></div>
+      </div>
+    </div>
+    
+    <!-- Modal pour passer un examen -->
+    <div id="examModal" class="modal hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 id="examTitle"></h2>
+          <div class="timer" id="timer">
+            ⏱️ <span id="timeRemaining"></span>
+          </div>
+        </div>
+        
+        <div class="modal-body" id="examQuestions">
+          <!-- Questions chargées dynamiquement -->
+        </div>
+        
+        <div class="modal-footer">
+          <button class="btn btn-secondary" id="cancelExam">Annuler</button>
+          <button class="btn btn-primary" id="submitExam">✅ Soumettre l'examen</button>
+        </div>
+      </div>
+    </div>
+    
+  </div>
+  
+  <script src="js/dashboard-etudiant.js"></script>
+</body>
+</html>
