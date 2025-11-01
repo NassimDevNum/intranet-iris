@@ -274,5 +274,239 @@ async function deleteExam(id) {
   }
 }
 
+
+
+async function loadExamResults() {
+  try {
+    // Récupérer tous les examens de l'enseignant
+    const examsResponse = await fetch(`${API_URL}/exams`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const allExams = await examsResponse.json();
+    const myExams = allExams.filter(e => e.createdBy._id === user.id);
+    
+    // Récupérer toutes les soumissions
+    const submissionsResponse = await fetch(`${API_URL}/submissions`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const allSubmissions = await submissionsResponse.json();
+    
+    const container = document.getElementById('resultsExamsList');
+    
+    if (myExams.length === 0) {
+      container.innerHTML = '<div class="empty-state">Aucun examen créé pour le moment</div>';
+      return;
+    }
+    
+    container.innerHTML = myExams.map(exam => {
+      // Filtrer les soumissions pour cet examen
+      const examSubmissions = allSubmissions.filter(s => s.examId._id === exam._id);
+      
+      const totalStudents = exam.etudiantsAssignes.length;
+      const completedStudents = examSubmissions.length;
+      const pendingStudents = totalStudents - completedStudents;
+      
+      // Calculer la note moyenne
+      const averageGrade = examSubmissions.length > 0
+        ? Math.round(examSubmissions.reduce((sum, s) => sum + s.note, 0) / examSubmissions.length)
+        : 0;
+      
+      // Générer le tableau des résultats
+      let studentsTableHTML = '';
+      
+      if (completedStudents === 0) {
+        studentsTableHTML = '<p style="color: #999; text-align: center; padding: 20px;">Aucun étudiant n\'a encore passé cet examen</p>';
+      } else {
+        studentsTableHTML = `
+          <table class="students-results-table">
+            <thead>
+              <tr>
+                <th>Étudiant</th>
+                <th>Note</th>
+                <th>Date</th>
+                <th>Statut</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${examSubmissions.map(sub => {
+                const gradeClass = 
+                  sub.note >= 80 ? 'grade-excellent' :
+                  sub.note >= 60 ? 'grade-good' :
+                  sub.note >= 40 ? 'grade-average' : 'grade-poor';
+                
+                return `
+                  <tr>
+                    <td>${sub.etudiantId.prenom} ${sub.etudiantId.nom}</td>
+                    <td><span class="grade-badge ${gradeClass}">${sub.note}/100</span></td>
+                    <td>${new Date(sub.dateFin).toLocaleDateString('fr-FR')} ${new Date(sub.dateFin).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</td>
+                    <td><span class="status-badge status-done">✓ Terminé</span></td>
+                    <td>
+                      <button class="btn-view-details" onclick='viewSubmissionDetails(${JSON.stringify(sub)}, ${JSON.stringify(exam)})'>
+                        👁️ Voir les détails
+                      </button>
+                    </td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        `;
+      }
+      
+      // Liste des étudiants qui n'ont pas encore passé l'examen
+      const assignedStudentIds = exam.etudiantsAssignes.map(e => e._id);
+      const completedStudentIds = examSubmissions.map(s => s.etudiantId._id);
+      const pendingStudentsList = exam.etudiantsAssignes.filter(e => !completedStudentIds.includes(e._id));
+      
+      let pendingStudentsHTML = '';
+      if (pendingStudentsList.length > 0) {
+        pendingStudentsHTML = `
+          <div style="margin-top: 20px; padding: 15px; background: #fff3cd; border-radius: 8px;">
+            <h4 style="color: #856404; margin-bottom: 10px;">⏳ Étudiants n'ayant pas encore passé l'examen :</h4>
+            <ul style="margin-left: 20px; color: #856404;">
+              ${pendingStudentsList.map(s => `<li>${s.prenom} ${s.nom}</li>`).join('')}
+            </ul>
+          </div>
+        `;
+      }
+      
+      return `
+        <div class="results-exam-card">
+          <h3>
+            ${exam.titre}
+            <span style="font-size: 14px; font-weight: normal; color: #666;">
+              ${exam.questions.length} questions | ${exam.duree} min
+            </span>
+          </h3>
+          
+          <div class="results-stats">
+            <div class="stat-box">
+              <div class="stat-label">Étudiants assignés</div>
+              <div class="stat-number">${totalStudents}</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-label">Ont passé l'examen</div>
+              <div class="stat-number">${completedStudents}</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-label">En attente</div>
+              <div class="stat-number">${pendingStudents}</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-label">Note moyenne</div>
+              <div class="stat-number">${averageGrade}/100</div>
+            </div>
+          </div>
+          
+          ${studentsTableHTML}
+          ${pendingStudentsHTML}
+        </div>
+      `;
+    }).join('');
+    
+  } catch (error) {
+    console.error('Erreur chargement résultats:', error);
+  }
+}
+
+// Voir les détails d'une soumission
+function viewSubmissionDetails(submission, exam) {
+  const modal = document.getElementById('resultDetailModal');
+  modal.classList.remove('hidden');
+  
+  // Header
+  document.getElementById('resultStudentName').textContent = 
+    `${submission.etudiantId.prenom} ${submission.etudiantId.nom}`;
+  
+  // Info examen
+  const gradeClass = 
+    submission.note >= 80 ? 'grade-excellent' :
+    submission.note >= 60 ? 'grade-good' :
+    submission.note >= 40 ? 'grade-average' : 'grade-poor';
+  
+  document.getElementById('resultExamInfo').innerHTML = `
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <div>
+        <h3 style="margin: 0 0 10px 0;">${exam.titre}</h3>
+        <p style="margin: 5px 0; color: #666;">
+          📅 Passé le: ${new Date(submission.dateFin).toLocaleDateString('fr-FR')} à ${new Date(submission.dateFin).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+        </p>
+      </div>
+      <div style="text-align: center;">
+        <div style="font-size: 48px; font-weight: bold; color: #667eea;">${submission.note}/100</div>
+        <span class="grade-badge ${gradeClass}">
+          ${submission.note >= 80 ? 'Excellent' : submission.note >= 60 ? 'Bien' : submission.note >= 40 ? 'Passable' : 'Insuffisant'}
+        </span>
+      </div>
+    </div>
+  `;
+  
+  // Réponses détaillées
+  const answersHTML = exam.questions.map((question, index) => {
+    const userAnswer = submission.reponses.find(r => r.questionNumero === question.numero);
+    const isCorrect = userAnswer && 
+      userAnswer.reponse.trim().toLowerCase() === question.reponseCorrecte.trim().toLowerCase();
+    
+    return `
+      <div class="answer-review">
+        <h4>Question ${question.numero} (${question.points} points)</h4>
+        <p style="color: #333; margin-bottom: 15px;"><strong>${question.texte}</strong></p>
+        
+        <div class="answer-comparison">
+          <div class="answer-box ${isCorrect ? 'correct' : 'incorrect'}">
+            <h5>${isCorrect ? '✓ Réponse de l\'étudiant (Correcte)' : '✗ Réponse de l\'étudiant (Incorrecte)'}</h5>
+            <p>${userAnswer ? userAnswer.reponse : '<em>Aucune réponse</em>'}</p>
+          </div>
+          
+          <div class="answer-box correct">
+            <h5>✓ Réponse attendue</h5>
+            <p>${question.reponseCorrecte}</p>
+          </div>
+        </div>
+        
+        ${question.options && question.options.length > 0 ? `
+          <div style="margin-top: 15px; padding: 10px; background: white; border-radius: 5px;">
+            <h5 style="font-size: 14px; color: #666; margin-bottom: 8px;">Options proposées :</h5>
+            <ul style="margin-left: 20px;">
+              ${question.options.map(opt => `<li>${opt}</li>`).join('')}
+            </ul>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }).join('');
+  
+  document.getElementById('resultAnswers').innerHTML = answersHTML;
+}
+
+// Fermer le modal de détails
+function closeResultModal() {
+  document.getElementById('resultDetailModal').classList.add('hidden');
+}
+
+// Mettre à jour la gestion des onglets pour inclure "results"
+const originalTabClickHandler = document.querySelectorAll('.tab-btn');
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const tabName = btn.dataset.tab;
+    
+    // Activer l'onglet
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    
+    // Afficher le contenu
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.getElementById(`${tabName}Tab`).classList.add('active');
+    
+    // Charger le contenu approprié
+    if (tabName === 'list') {
+      loadExams();
+    } else if (tabName === 'results') {
+      loadExamResults();
+    }
+  });
+});
+
 // Charger les étudiants au démarrage
 loadStudents();
