@@ -1,5 +1,7 @@
 const API_URL = 'http://localhost:3000/api';
 let questionCount = 0;
+let editMode = false;
+let currentExamId = null;
 
 // Vérifier l'authentification
 const token = localStorage.getItem('token');
@@ -32,9 +34,16 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
     document.getElementById(`${tabName}Tab`).classList.add('active');
     
-    // Charger les examens si on affiche la liste
+    // Charger le contenu approprié
     if (tabName === 'list') {
       loadExams();
+    } else if (tabName === 'results') {
+      loadExamResults();
+    } else if (tabName === 'create') {
+      // Réinitialiser le formulaire si on revient à l'onglet création
+      if (editMode) {
+        resetCreateForm();
+      }
     }
   });
 });
@@ -154,7 +163,122 @@ async function loadStudents() {
   }
 }
 
-// Créer un examen
+// Réinitialiser le formulaire de création
+function resetCreateForm() {
+  editMode = false;
+  currentExamId = null;
+  document.getElementById('createExamForm').reset();
+  document.getElementById('questionsContainer').innerHTML = '';
+  questionCount = 0;
+  
+  // Changer le titre et le bouton
+  document.querySelector('#createTab h2').textContent = '📝 Créer un nouvel examen';
+  document.querySelector('#createExamForm button[type="submit"]').textContent = '✅ Créer l\'examen';
+}
+
+// Charger un examen pour édition
+async function editExam(examId) {
+  try {
+    // Récupérer l'examen
+    const response = await fetch(`${API_URL}/exams/${examId}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const exam = await response.json();
+    
+    // Passer en mode édition
+    editMode = true;
+    currentExamId = examId;
+    
+    // Changer vers l'onglet création
+    document.querySelector('[data-tab="create"]').click();
+    
+    // Changer le titre et le bouton
+    document.querySelector('#createTab h2').textContent = '✏️ Modifier l\'examen';
+    document.querySelector('#createExamForm button[type="submit"]').textContent = '💾 Enregistrer les modifications';
+    
+    // Remplir les champs de base
+    document.getElementById('titre').value = exam.titre;
+    document.getElementById('description').value = exam.description || '';
+    document.getElementById('duree').value = exam.duree;
+    
+    // Charger les questions
+    document.getElementById('questionsContainer').innerHTML = '';
+    questionCount = 0;
+    
+    exam.questions.forEach((question, index) => {
+      questionCount++;
+      const container = document.getElementById('questionsContainer');
+      
+      const questionHTML = `
+        <div class="question-item" data-question="${questionCount}">
+          <div class="question-header">
+            <h4>Question ${questionCount}</h4>
+            <button type="button" class="remove-question" onclick="removeQuestion(${questionCount})">
+              ❌ Supprimer
+            </button>
+          </div>
+          
+          <div class="form-group">
+            <label>Texte de la question *</label>
+            <textarea name="question_${questionCount}_texte" required rows="2">${question.texte}</textarea>
+          </div>
+          
+          <div class="form-group">
+            <label>Type de question *</label>
+            <select name="question_${questionCount}_type" onchange="handleQuestionTypeChange(${questionCount})" required>
+              <option value="">Choisir un type</option>
+              <option value="qcm" ${question.type === 'qcm' ? 'selected' : ''}>QCM (Choix multiples)</option>
+              <option value="text" ${question.type === 'text' ? 'selected' : ''}>Texte libre</option>
+              <option value="vrai_faux" ${question.type === 'vrai_faux' ? 'selected' : ''}>Vrai/Faux</option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label>Points *</label>
+            <input type="number" name="question_${questionCount}_points" min="1" value="${question.points}" required>
+          </div>
+          
+          <div id="options_${questionCount}" class="options-container ${question.options && question.options.length > 0 ? '' : 'hidden'}">
+            <label>Options de réponse</label>
+            <div id="optionsList_${questionCount}">
+              ${question.options ? question.options.map(opt => `
+                <div class="option-item">
+                  <input type="text" name="question_${questionCount}_option" value="${opt}" ${question.type === 'vrai_faux' ? 'readonly' : ''}>
+                  ${question.type !== 'vrai_faux' ? '<button type="button" onclick="this.parentElement.remove()">❌</button>' : ''}
+                </div>
+              `).join('') : ''}
+            </div>
+            <button type="button" class="btn btn-secondary" onclick="addOption(${questionCount})" style="width: auto; padding: 8px 15px; margin-top: 10px;">
+              ➕ Ajouter une option
+            </button>
+          </div>
+          
+          <div class="form-group">
+            <label>Réponse correcte *</label>
+            <input type="text" name="question_${questionCount}_reponse" required value="${question.reponseCorrecte}">
+          </div>
+        </div>
+      `;
+      
+      container.insertAdjacentHTML('beforeend', questionHTML);
+    });
+    
+    // Sélectionner les étudiants assignés
+    const select = document.getElementById('etudiants');
+    Array.from(select.options).forEach(option => {
+      option.selected = exam.etudiantsAssignes.some(e => e._id === option.value);
+    });
+    
+    // Scroll vers le haut
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    
+  } catch (error) {
+    console.error('Erreur chargement examen:', error);
+    alert('❌ Erreur lors du chargement de l\'examen');
+  }
+}
+
+// Créer ou mettre à jour un examen
 document.getElementById('createExamForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   
@@ -199,8 +323,11 @@ document.getElementById('createExamForm').addEventListener('submit', async (e) =
   };
   
   try {
-    const response = await fetch(`${API_URL}/exams`, {
-      method: 'POST',
+    const url = editMode ? `${API_URL}/exams/${currentExamId}` : `${API_URL}/exams`;
+    const method = editMode ? 'PUT' : 'POST';
+    
+    const response = await fetch(url, {
+      method: method,
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
@@ -208,12 +335,18 @@ document.getElementById('createExamForm').addEventListener('submit', async (e) =
       body: JSON.stringify(examData)
     });
     
-    if (!response.ok) throw new Error('Erreur lors de la création');
+    if (!response.ok) throw new Error('Erreur lors de l\'enregistrement');
     
-    alert('✅ Examen créé avec succès !');
-    e.target.reset();
-    document.getElementById('questionsContainer').innerHTML = '';
-    questionCount = 0;
+    alert(editMode ? '✅ Examen modifié avec succès !' : '✅ Examen créé avec succès !');
+    
+    // Réinitialiser le formulaire
+    resetCreateForm();
+    
+    // Recharger la liste des examens
+    loadExams();
+    
+    // Revenir à l'onglet liste
+    document.querySelector('[data-tab="list"]').click();
     
   } catch (error) {
     alert('❌ Erreur: ' + error.message);
@@ -245,7 +378,7 @@ async function loadExams() {
           <p>📊 Statut: ${exam.statut}</p>
         </div>
         <div class="exam-actions">
-          <button class="btn-edit" onclick="alert('Fonctionnalité à venir')">✏️ Modifier</button>
+          <button class="btn-edit" onclick="editExam('${exam._id}')">✏️ Modifier</button>
           <button class="btn-delete" onclick="deleteExam('${exam._id}')">🗑️ Supprimer</button>
         </div>
       </div>
@@ -274,18 +407,14 @@ async function deleteExam(id) {
   }
 }
 
-
-
 async function loadExamResults() {
   try {
-    // Récupérer tous les examens de l'enseignant
     const examsResponse = await fetch(`${API_URL}/exams`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     const allExams = await examsResponse.json();
     const myExams = allExams.filter(e => e.createdBy._id === user.id);
     
-    // Récupérer toutes les soumissions
     const submissionsResponse = await fetch(`${API_URL}/submissions`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
@@ -299,19 +428,16 @@ async function loadExamResults() {
     }
     
     container.innerHTML = myExams.map(exam => {
-      // Filtrer les soumissions pour cet examen
       const examSubmissions = allSubmissions.filter(s => s.examId._id === exam._id);
       
       const totalStudents = exam.etudiantsAssignes.length;
       const completedStudents = examSubmissions.length;
       const pendingStudents = totalStudents - completedStudents;
       
-      // Calculer la note moyenne
       const averageGrade = examSubmissions.length > 0
         ? Math.round(examSubmissions.reduce((sum, s) => sum + s.note, 0) / examSubmissions.length)
         : 0;
       
-      // Générer le tableau des résultats
       let studentsTableHTML = '';
       
       if (completedStudents === 0) {
@@ -354,7 +480,6 @@ async function loadExamResults() {
         `;
       }
       
-      // Liste des étudiants qui n'ont pas encore passé l'examen
       const assignedStudentIds = exam.etudiantsAssignes.map(e => e._id);
       const completedStudentIds = examSubmissions.map(s => s.etudiantId._id);
       const pendingStudentsList = exam.etudiantsAssignes.filter(e => !completedStudentIds.includes(e._id));
@@ -410,16 +535,13 @@ async function loadExamResults() {
   }
 }
 
-// Voir les détails d'une soumission
 function viewSubmissionDetails(submission, exam) {
   const modal = document.getElementById('resultDetailModal');
   modal.classList.remove('hidden');
   
-  // Header
   document.getElementById('resultStudentName').textContent = 
     `${submission.etudiantId.prenom} ${submission.etudiantId.nom}`;
   
-  // Info examen
   const gradeClass = 
     submission.note >= 80 ? 'grade-excellent' :
     submission.note >= 60 ? 'grade-good' :
@@ -442,7 +564,6 @@ function viewSubmissionDetails(submission, exam) {
     </div>
   `;
   
-  // Réponses détaillées
   const answersHTML = exam.questions.map((question, index) => {
     const userAnswer = submission.reponses.find(r => r.questionNumero === question.numero);
     const isCorrect = userAnswer && 
@@ -480,33 +601,9 @@ function viewSubmissionDetails(submission, exam) {
   document.getElementById('resultAnswers').innerHTML = answersHTML;
 }
 
-// Fermer le modal de détails
 function closeResultModal() {
   document.getElementById('resultDetailModal').classList.add('hidden');
 }
-
-// Mettre à jour la gestion des onglets pour inclure "results"
-const originalTabClickHandler = document.querySelectorAll('.tab-btn');
-document.querySelectorAll('.tab-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const tabName = btn.dataset.tab;
-    
-    // Activer l'onglet
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    
-    // Afficher le contenu
-    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-    document.getElementById(`${tabName}Tab`).classList.add('active');
-    
-    // Charger le contenu approprié
-    if (tabName === 'list') {
-      loadExams();
-    } else if (tabName === 'results') {
-      loadExamResults();
-    }
-  });
-});
 
 // Charger les étudiants au démarrage
 loadStudents();
