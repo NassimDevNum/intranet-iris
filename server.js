@@ -2,6 +2,8 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const connectDB = require('./config/database');
+const examChecker = require('./utils/examChecker');
+const exportRoutes = require('./routes/exportRoutes');
 
 const app = express();
 
@@ -24,6 +26,12 @@ app.use('/api/exams', require('./routes/examRoutes'));  // ← Décommente cette
 app.get('/', (req, res) => {
   res.json({ message: 'API IRIS Exam - Serveur démarré ✅' });
 });
+
+// Routes pour expiration date
+examChecker.startAutoCheck();
+
+// Routes pour export csv
+app.use('/api/export', exportRoutes);
 
 
 app.use('/api/submissions', require('./routes/submissionRoutes'));

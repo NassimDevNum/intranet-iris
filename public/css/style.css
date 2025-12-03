@@ -715,3 +715,62 @@ textarea {
 .close-modal:hover {
   background: rgba(255,255,255,0.3);
 }
+
+/* Badge pour examen déjà passé */
+.exam-status.completed {
+  background: #28a745;
+  color: white;
+  padding: 5px 15px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+/* Classes pour les notes */
+.grade-excellent {
+  color: #28a745;
+}
+
+.grade-good {
+  color: #17a2b8;
+}
+
+.grade-average {
+  color: #ffc107;
+}
+
+.grade-poor {
+  color: #dc3545;
+}
+
+.result-score {
+  font-size: 48px;
+  font-weight: bold;
+  margin: 15px 0;
+}
+
+/* Statut urgent */
+.exam-status.urgent {
+  background: #ffc107;
+  color: #000;
+  padding: 5px 15px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: bold;
+  animation: pulse 2s infinite;
+}
+
+/* Statut expiré */
+.exam-status.expired {
+  background: #dc3545;
+  color: white;
+  padding: 5px 15px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}

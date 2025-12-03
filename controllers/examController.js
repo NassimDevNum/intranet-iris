@@ -7,16 +7,16 @@ exports.createExam = async (req, res) => {
     const { titre, description, duree, questions, etudiantsAssignes, dateDebut, dateFin } = req.body;
     const { userId } = req.body;  // On récupère l'ID de l'enseignant (à améliorer avec un middleware plus tard)
 
-    const exam = await Exam.create({
+  const exam = await Exam.create({
       titre,
       description,
       duree,
       questions,
       etudiantsAssignes,
-      dateDebut,
-      dateFin,
-      createdBy: userId,
-      statut: 'brouillon'
+      dateDebut: dateDebut || Date.now(), // Début immédiat si non spécifié
+      dateFin: dateFin || new Date(Date.now() + 48 * 60 * 60 * 1000), // 48h par défaut
+      createdBy: req.user._id,
+      statut: 'publie' // Publié automatiquement (ou 'brouillon' si tu préfères)
     });
 
     res.status(201).json({

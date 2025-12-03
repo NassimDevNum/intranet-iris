@@ -2,6 +2,7 @@ const API_URL = 'http://localhost:3000/api';
 let currentExam = null;
 let timerInterval = null;
 let startTime = null;
+let mySubmissions = []; // Stocke les soumissions de l'étudiant
 
 // Vérifier l'authentification
 const token = localStorage.getItem('token');
@@ -38,9 +39,35 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
   });
 });
 
+// Charger les soumissions de l'étudiant
+async function loadMySubmissions() {
+  try {
+    const response = await fetch(`${API_URL}/submissions`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    
+    const allSubmissions = await response.json();
+    
+    // Filtrer les soumissions de l'étudiant connecté
+    mySubmissions = allSubmissions.filter(s => s.etudiantId._id === user.id);
+    
+  } catch (error) {
+    console.error('Erreur chargement soumissions:', error);
+    mySubmissions = [];
+  }
+}
+
+// Vérifier si un examen a déjà été passé
+function hasAlreadyPassed(examId) {
+  return mySubmissions.some(sub => sub.examId._id === examId);
+}
+
 // Charger les examens assignés
 async function loadExams() {
   try {
+    // Charger d'abord les soumissions
+    await loadMySubmissions();
+    
     const response = await fetch(`${API_URL}/exams`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
@@ -59,21 +86,59 @@ async function loadExams() {
       return;
     }
     
-    container.innerHTML = myExams.map(exam => `
-      <div class="exam-card">
-        <span class="exam-status disponible">Disponible</span>
-        <h3>${exam.titre}</h3>
-        <div class="exam-info">
-          <p>${exam.description || 'Pas de description'}</p>
-          <p>⏱️ Durée: ${exam.duree} minutes</p>
-          <p>📝 ${exam.questions.length} questions</p>
-          <p>👨‍🏫 Par: ${exam.createdBy.prenom} ${exam.createdBy.nom}</p>
+    container.innerHTML = myExams.map(exam => {
+      const alreadyPassed = hasAlreadyPassed(exam._id);
+      const submission = mySubmissions.find(sub => sub.examId._id === exam._id);
+      const isExpired = new Date() > new Date(exam.dateFin);
+      const timeRemaining = new Date(exam.dateFin) - new Date();
+      const hoursRemaining = Math.floor(timeRemaining / (1000 * 60 * 60));
+      
+      // Déterminer le statut
+      let statusClass = 'disponible';
+      let statusText = 'Disponible';
+      
+      if (alreadyPassed) {
+        statusClass = submission.statut === 'expire' ? 'expired' : 'completed';
+        statusText = submission.statut === 'expire' ? '⏰ Expiré (non passé)' : '✅ Déjà passé';
+      } else if (isExpired) {
+        statusClass = 'expired';
+        statusText = '⏰ Expiré';
+      } else if (hoursRemaining <= 24) {
+        statusClass = 'urgent';
+        statusText = `⚠️ ${hoursRemaining}h restantes`;
+      }
+      
+      return `
+        <div class="exam-card">
+          <span class="exam-status ${statusClass}">
+            ${statusText}
+          </span>
+          <h3>${exam.titre}</h3>
+          <div class="exam-info">
+            <p>${exam.description || 'Pas de description'}</p>
+            <p>⏱️ Durée: ${exam.duree} minutes</p>
+            <p>📝 ${exam.questions.length} questions</p>
+            <p>👨‍🏫 Par: ${exam.createdBy.prenom} ${exam.createdBy.nom}</p>
+            <p>📅 Date limite: ${new Date(exam.dateFin).toLocaleString('fr-FR')}</p>
+            ${alreadyPassed ? `
+              <p style="color: ${submission.statut === 'expire' ? '#dc3545' : '#28a745'}; font-weight: bold; margin-top: 10px;">
+                📊 Votre note: ${submission.note}/100
+                ${submission.statut === 'expire' ? ' (Examen non passé dans les délais)' : ''}
+              </p>
+            ` : ''}
+          </div>
+          ${alreadyPassed || isExpired ? `
+            <button class="btn-start-exam" disabled style="background: #6c757d; cursor: not-allowed;">
+              ${isExpired && !alreadyPassed ? '⏰ Examen expiré' : '✅ Examen terminé'}
+            </button>
+          ` : `
+            <button class="btn-start-exam" onclick="startExam('${exam._id}')">
+              ▶️ Commencer l'examen
+            </button>
+          `}
         </div>
-        <button class="btn-start-exam" onclick="startExam('${exam._id}')">
-          ▶️ Commencer l'examen
-        </button>
-      </div>
-    `).join('');
+      `;
+    }).join('');
     
   } catch (error) {
     console.error('Erreur chargement examens:', error);
@@ -83,6 +148,12 @@ async function loadExams() {
 // Démarrer un examen
 async function startExam(examId) {
   try {
+    // Vérifier une dernière fois avant de commencer
+    if (hasAlreadyPassed(examId)) {
+      alert('⚠️ Vous avez déjà passé cet examen. Vous ne pouvez pas le repasser.');
+      return;
+    }
+    
     const response = await fetch(`${API_URL}/exams/${examId}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
@@ -227,20 +298,26 @@ async function submitExam() {
       },
       body: JSON.stringify({
         examId: currentExam._id,
-        etudiantId: user.id,
         reponses,
         note,
-        statut: 'soumis',
+        dateDebut: new Date(startTime),
         dateFin: new Date()
       })
     });
     
+    const data = await response.json();
+    
     if (response.ok) {
       alert(`✅ Examen soumis avec succès !\n\nVotre note: ${note}/100`);
       closeModal();
+      loadExams(); // Recharger pour afficher le badge "Déjà passé"
+    } else if (data.alreadySubmitted) {
+      // Gérer le cas où l'examen a déjà été soumis
+      alert('⚠️ ' + data.message);
+      closeModal();
       loadExams();
     } else {
-      throw new Error('Erreur lors de la soumission');
+      throw new Error(data.message || 'Erreur lors de la soumission');
     }
     
   } catch (error) {
@@ -272,25 +349,33 @@ async function loadResults() {
     const allSubmissions = await response.json();
     
     // Filtrer les soumissions de l'étudiant
-    const mySubmissions = allSubmissions.filter(s => s.etudiantId === user.id);
+    const myResults = allSubmissions.filter(s => s.etudiantId._id === user.id);
     
     const container = document.getElementById('resultsList');
     
-    if (mySubmissions.length === 0) {
+    if (myResults.length === 0) {
       container.innerHTML = '<div class="empty-state">Aucun résultat pour le moment</div>';
       return;
     }
     
-    container.innerHTML = mySubmissions.map(sub => `
-      <div class="result-card">
-        <h3>${sub.examId.titre}</h3>
-        <div class="result-score">${sub.note}/100</div>
-        <div class="result-details">
-          <p>📅 Passé le: ${new Date(sub.dateFin).toLocaleDateString('fr-FR')}</p>
-          <p>📝 ${sub.reponses.length} questions répondues</p>
+    container.innerHTML = myResults.map(sub => {
+      const gradeClass = 
+        sub.note >= 80 ? 'grade-excellent' :
+        sub.note >= 60 ? 'grade-good' :
+        sub.note >= 40 ? 'grade-average' : 'grade-poor';
+      
+      return `
+        <div class="result-card">
+          <h3>${sub.examId.titre}</h3>
+          <div class="result-score ${gradeClass}">${sub.note}/100</div>
+          <div class="result-details">
+            <p>📅 Passé le: ${new Date(sub.dateFin).toLocaleDateString('fr-FR')} à ${new Date(sub.dateFin).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</p>
+            <p>📝 ${sub.reponses.length} questions répondues</p>
+            <p>⏱️ Durée: ${sub.examId.duree} minutes</p>
+          </div>
         </div>
-      </div>
-    `).join('');
+      `;
+    }).join('');
     
   } catch (error) {
     console.error('Erreur chargement résultats:', error);

@@ -6,7 +6,7 @@ const reponseSchema = new mongoose.Schema({
     required: true
   },
   reponse: {
-    type: mongoose.Schema.Types.Mixed  // Peut être string ou array
+    type: mongoose.Schema.Types.Mixed
   }
 });
 
@@ -22,22 +22,24 @@ const submissionSchema = new mongoose.Schema({
     required: true
   },
   reponses: [reponseSchema],
+  note: {
+    type: Number,
+    required: true,
+    min: 0,
+    max: 100
+  },
   dateDebut: {
     type: Date,
     default: Date.now
   },
   dateFin: {
-    type: Date
+    type: Date,
+    default: Date.now
   },
   statut: {
     type: String,
-    enum: ['en_cours', 'soumis'],
-    default: 'en_cours'
-  },
-  note: {
-    type: Number,
-    min: 0,
-    max: 100
+    enum: ['soumis', 'expire'],
+    default: 'soumis'
   }
 }, {
   timestamps: true

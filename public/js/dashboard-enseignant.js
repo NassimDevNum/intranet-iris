@@ -427,7 +427,16 @@ async function loadExamResults() {
       return;
     }
     
-    container.innerHTML = myExams.map(exam => {
+    // Bouton d'export global en haut
+    let htmlContent = `
+      <div style="margin-bottom: 20px; text-align: right;">
+        <button class="btn btn-primary" onclick="exportAllResults()" style="width: auto; padding: 10px 20px;">
+          📊 Exporter tous les résultats (CSV)
+        </button>
+      </div>
+    `;
+    
+    htmlContent += myExams.map(exam => {
       const examSubmissions = allSubmissions.filter(s => s.examId._id === exam._id);
       
       const totalStudents = exam.etudiantsAssignes.length;
@@ -498,12 +507,17 @@ async function loadExamResults() {
       
       return `
         <div class="results-exam-card">
-          <h3>
-            ${exam.titre}
-            <span style="font-size: 14px; font-weight: normal; color: #666;">
-              ${exam.questions.length} questions | ${exam.duree} min
-            </span>
-          </h3>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3>
+              ${exam.titre}
+              <span style="font-size: 14px; font-weight: normal; color: #666;">
+                ${exam.questions.length} questions | ${exam.duree} min
+              </span>
+            </h3>
+            <button class="btn btn-secondary" onclick="exportExamResults('${exam._id}', '${exam.titre}')" style="width: auto; padding: 8px 15px;">
+              📥 Exporter CSV
+            </button>
+          </div>
           
           <div class="results-stats">
             <div class="stat-box">
@@ -529,6 +543,8 @@ async function loadExamResults() {
         </div>
       `;
     }).join('');
+    
+    container.innerHTML = htmlContent;
     
   } catch (error) {
     console.error('Erreur chargement résultats:', error);
@@ -607,3 +623,58 @@ function closeResultModal() {
 
 // Charger les étudiants au démarrage
 loadStudents();
+
+// Fonction pour exporter les résultats d'un examen en CSV
+async function exportExamResults(examId, examTitle) {
+  try {
+    const response = await fetch(`${API_URL}/export/exam/${examId}/csv`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    
+    if (!response.ok) throw new Error('Erreur lors de l\'export');
+    
+    // Créer un blob et télécharger le fichier
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `resultats_${examTitle.replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+    
+    alert('✅ Fichier CSV téléchargé avec succès !');
+    
+  } catch (error) {
+    alert('❌ Erreur lors de l\'export: ' + error.message);
+    console.error(error);
+  }
+}
+
+// Fonction pour exporter tous les résultats en CSV
+async function exportAllResults() {
+  try {
+    const response = await fetch(`${API_URL}/export/all/csv`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    
+    if (!response.ok) throw new Error('Erreur lors de l\'export');
+    
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `tous_les_resultats_${Date.now()}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+    
+    alert('✅ Fichier CSV de tous les résultats téléchargé avec succès !');
+    
+  } catch (error) {
+    alert('❌ Erreur lors de l\'export: ' + error.message);
+    console.error(error);
+  }
+}
